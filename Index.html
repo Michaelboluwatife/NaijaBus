@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NaijaBus - Bus Park & Route Information</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #059669 0%, #0284c7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .slide-in {
+            animation: slideIn 0.4s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        #map { height: 400px; z-index: 1; }
+        .nav-active {
+            color: #059669;
+            position: relative;
+        }
+        .nav-active::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #059669;
+            border-radius: 2px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 glass border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-2 cursor-pointer" onclick="router.navigate('home')">
+                    <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-cyan-600 rounded-xl flex items-center justify-center text-white font-bold text-xl">
+                        <i data-lucide="bus" class="w-6 h-6"></i>
+                    </div>
+                    <span class="text-xl font-bold gradient-text">NaijaBus</span>
+                </div>
+                
+                <div class="hidden md:flex items-center gap-8">
+                    <button onclick="router.navigate('home')" id="nav-home" class="nav-link text-sm font-medium text-slate-600 hover:text-emerald-600 transition-colors">Home</button>
+                    <button onclick="router.navigate('parks')" id="nav-parks" class="nav-link text-sm font-medium text-slate-600 hover:text-emerald-600 transition-colors">Bus Parks</button>
+                    <button onclick="router.navigate('routes')" id="nav-routes" class="nav-link text-sm font-medium text-slate-600 hover:text-emerald-600 transition-colors">Routes</button>
+                </div>
+
+                <button class="md:hidden p-2 text-slate-600" onclick="toggleMobileMenu()">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden border-t border-slate-200 bg-white">
+            <div class="px-4 pt-2 pb-4 space-y-1">
+                <button onclick="router.navigate('home')" class="block w-full text-left px-3 py-2 text-base font-medium text-slate-600 hover:text-emerald-600 hover:bg-slate-50 rounded-lg">Home</button>
+                <button onclick="router.navigate('parks')" class="block w-full text-left px-3 py-2 text-base font-medium text-slate-600 hover:text-emerald-600 hover:bg-slate-50 rounded-lg">Bus Parks</button>
+                <button onclick="router.navigate('routes')" class="block w-full text-left px-3 py-2 text-base font-medium text-slate-600 hover:text-emerald-600 hover:bg-slate-50 rounded-lg">Routes</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main id="app" class="pt-16 min-h-screen">
+        <!-- Dynamic content injected here -->
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-300 py-12 mt-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-8">
+                <div class="col-span-2">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-8 h-8 bg-gradient-to-br from-emerald-500 to-cyan-600 rounded-lg flex items-center justify-center text-white">
+                            <i data-lucide="bus" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-lg font-bold text-white">NaijaBus</span>
+                    </div>
+                    <p class="text-slate-400 text-sm leading-relaxed max-w-sm">
+                        Your trusted companion for bus travel across Nigeria. Find parks, check routes, and plan your journey with real-time information.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="text-white font-semibold mb-4">Quick Links</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><button onclick="router.navigate('parks')" class="hover:text-emerald-400 transition-colors">Bus Parks</button></li>
+                        <li><button onclick="router.navigate('routes')" class="hover:text-emerald-400 transition-colors">Routes</button></li>
+                        <li><button onclick="router.navigate('home')" class="hover:text-emerald-400 transition-colors">Search</button></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-white font-semibold mb-4">Contact</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li class="flex items-center gap-2"><i data-lucide="mail" class="w-4 h-4"></i> support@naijabus.ng</li>
+                        <li class="flex items-center gap-2"><i data-lucide="phone" class="w-4 h-4"></i> +234 800 123 4567</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-slate-800 mt-8 pt-8 text-center text-sm text-slate-500">
+                © 2024 NaijaBus. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Sample Data - Nigerian Bus Parks & Routes
+        const data = {
+            parks: [
+                {
+                    id: 1,
+                    name: "Jibowu Bus Terminal",
+                    city: "Lagos",
+                    state: "Lagos",
+                    phone: "+234 802 345 6789",
+                    union: "Lagos State Transport Association (LASSTA)",
+                    address: "Jibowu, Yaba, Lagos",
+                    coordinates: [6.5244, 3.3792],
+                    image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&q=80",
+                    description: "Major terminal serving routes to eastern and western Nigeria."
+                },
+                {
+                    id: 2,
+                    name: "Ojota Motor Park",
+                    city: "Lagos",
+                    state: "Lagos",
+                    phone: "+234 803 456 7890",
+                    union: "National Union of Road Transport Workers (NURTW)",
+                    address: "Ojota, Lagos-Ibadan Expressway",
+                    coordinates: [6.5956, 3.3639],
+                    image: "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=800&q=80",
+                    description: "One of Lagos' busiest parks with routes to northern Nigeria."
+                },
+                {
+                    id: 3,
+                    name: "Maza Maza Motor Park",
+                    city: "Lagos",
+                    state: "Lagos",
+                    phone: "+234 805 678 9012",
+                    union: "Road Transport Employers Association (RTEAN)",
+                    address: "Maza Maza, Badagry Expressway",
+                    coordinates: [6.4550, 3.3847],
+                    image: "https://images.unsplash.com/photo-1564694202779-bc908c327862?w=800&q=80",
+                    description: "Gateway to Benin Republic and western destinations."
+                },
+                {
+                    id: 4,
+                    name: "Utako Motor Park",
+                    city: "Abuja",
+                    state: "FCT",
+                    phone: "+234 809 123 4567",
+                    union: "NURTW FCT Chapter",
+                    address: "Utako District, Abuja",
+                    coordinates: [9.0765, 7.3986],
+                    image: "https://images.unsplash.com/photo-1570125909517-8cb409ee50d9?w=800&q=80",
+                    description: "Central hub connecting Abuja to all regions of Nigeria."
+                },
+                {
+                    id: 5,
+                    name: "Garki Ultra Modern Park",
+                    city: "Abuja",
+                    state: "FCT",
+                    phone: "+234 701 234 5678",
+                    union: "RTEAN FCT",
+                    address: "Garki Area 1, Abuja",
+                    coordinates: [9.0259, 7.4954],
+                    image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=800&q=80",
+                    description: "Modern facility with enhanced security and comfort."
+                },
+                {
+                    id: 6,
+                    name: "Lagos Park (Ibadan)",
+                    city: "Ibadan",
+                    state: "Oyo",
+                    phone: "+234 806 789 0123",
+                    union: "Oyo State Transport Union",
+                    address: "Iwo Road, Ibadan",
+                    coordinates: [7.3775, 3.9470],
+                    image: "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=800&q=80",
+                    description: "Primary connection point between Ibadan and Lagos."
+                },
+                {
+                    id: 7,
+                    name: "Kano Line Motor Park",
+                    city: "Kano",
+                    state: "Kano",
+                    phone: "+234 802 987 6543",
+                    union: "Kano State Transport Union",
+                    address: "Sabon Gari, Kano",
+                    coordinates: [12.0022, 8.5919],
+                    image: "https://images.unsplash.com/photo-1564694202779-bc908c327862?w=800&q=80",
+                    description: "Northern hub serving routes to southern Nigeria."
+                },
+                {
+                    id: 8,
+                    name: "Enugu Park",
+                    city: "Enugu",
+                    state: "Enugu",
+                    phone: "+234 703 456 7890",
+                    union: "Enugu State Transport Association",
+                    address: "Ogbete Main Market, Enugu",
+                    coordinates: [6.5244, 7.5186],
+                    image: "https://images.unsplash.com/photo-1570125909517-8cb409ee50d9?w=800&q=80",
+                    description: "Eastern Nigeria's major transportation center."
+                }
+            ],
+            routes: [
+                { id: 1, from: "Jibowu Bus Terminal", to: "Enugu Park", fare: "₦8,000 - ₦12,000", duration: "8-10 hours", type: "Luxury" },
+                { id: 2, from: "Jibowu Bus Terminal", to: "Ojota Motor Park", fare: "₦500 - ₦1,000", duration: "45 mins", type: "Local" },
+                { id: 3, from: "Ojota Motor Park", to: "Kano Line Motor Park", fare: "₦15,000 - ₦22,000", duration: "12-14 hours", type: "VIP" },
+                { id: 4, from: "Utako Motor Park", to: "Lagos Park (Ibadan)", fare: "₦6,000 - ₦9,000", duration: "6-7 hours", type: "Standard" },
+                { id: 5, from: "Maza Maza Motor Park", to: "Enugu Park", fare: "₦7,500 - ₦11,000", duration: "7-9 hours", type: "Luxury" },
+                { id: 6, from: "Garki Ultra Modern Park", to: "Kano Line Motor Park", fare: "₦4,000 - ₦6,000", duration: "4-5 hours", type: "Standard" },
+                { id: 7, from: "Enugu Park", to: "Utako Motor Park", fare: "₦9,000 - ₦14,000", duration: "9-11 hours", type: "VIP" },
+                { id: 8, from: "Lagos Park (Ibadan)", to: "Kano Line Motor Park", fare: "₦12,000 - ₦18,000", duration: "10-12 hours", type: "Luxury" },
+                { id: 9, from: "Jibowu Bus Terminal", to: "Maza Maza Motor Park", fare: "₦1,500 - ₦2,500", duration: "1.5 hours", type: "Local" },
+                { id: 10, from: "Ojota Motor Park", to: "Lagos Park (Ibadan)", fare: "₦2,000 - ₦3,500", duration: "2-3 hours", type: "Standard" }
+            ]
+        };
+
+        // Router
+        const router = {
+            currentPage: 'home',
+            navigate(page, params = {}) {
+                this.currentPage = page;
+                this.params = params;
+                this.render();
+                window.scrollTo(0, 0);
+                this.updateNav();
+            },
+            
+            updateNav() {
+                document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('nav-active'));
+                const activeNav = document.getElementById(`nav-${this.currentPage}`);
+                if (activeNav) activeNav.classList.add('nav-active');
+            },
+            
+            render() {
+                const app = document.getElementById('app');
+                switch(this.currentPage) {
+                    case 'home':
+                        app.innerHTML = this.renderHome();
+                        this.initHome();
+                        break;
+                    case 'parks':
+                        app.innerHTML = this.renderParks();
+                        this.initParks();
+                        break;
+                    case 'routes':
+                        app.innerHTML = this.renderRoutes();
+                        this.initRoutes();
+                        break;
+                    case 'details':
+                        app.innerHTML = this.renderDetails();
+                        this.initDetails();
+                        break;
+                }
+                lucide.createIcons();
+            },
+
+            renderHome() {
+                return `
+                    <!-- Hero Section -->
+                    <div class="relative bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 text-white overflow-hidden">
+                        <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 relative z-10">
+                            <div class="text-center max-w-3xl mx-auto slide-in">
+                                <h1 class="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+                                    Navigate Nigeria<br>
+                                    <span class="text-emerald-200">One Bus at a Time</span>
+                                </h1>
+                                <p class="text-lg md:text-xl text-emerald-100 mb-10 leading-relaxed">
+                                    Find bus parks, discover routes, check fares, and plan your journey across Nigeria with confidence.
+                                </p>
+                                
+                                <!-- Search Bar -->
+                                <div class="bg-white/10 backdrop-blur-md rounded-2xl p-2 max-w-2xl mx-auto border border-white/20">
+                                    <div class="flex flex-col md:flex-row gap-2">
+                                        <div class="flex-1 relative">
+                                            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+                                            <input type="text" id="hero-search" placeholder="Search parks, routes, or destinations..." 
+                                                class="w-full pl-12 pr-4 py-4 rounded-xl text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                onkeyup="handleHeroSearch(event)">
+                                        </div>
+                                        <button onclick="performHeroSearch()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2">
+                                            <span>Search</span>
+                                            <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Decorative Elements -->
+                        <div class="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-slate-50 to-transparent"></div>
+                    </div>
+
+                    <!-- Features Section -->
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+                        <div class="grid md:grid-cols-3 gap-8">
+                            <div class="bg-white rounded-2xl p-8 shadow-lg card-hover border border-slate-100">
+                                <div class="w-14 h-14 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 mb-6">
+                                    <i data-lucide="map-pin" class="w-7 h-7"></i>
+                                </div>
+                                <h3 class="text-xl font-bold text-slate-800 mb-3">Find Bus Parks</h3>
+                                <p class="text-slate-600 leading-relaxed">Locate bus terminals across Nigeria with detailed information, contact details, and facilities.</p>
+                                <button onclick="router.navigate('parks')" class="mt-6 text-emerald-600 font-semibold flex items-center gap-2 hover:gap-3 transition-all">
+                                    Explore Parks <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="bg-white rounded-2xl p-8 shadow-lg card-hover border border-slate-100">
+                                <div class="w-14 h-14 bg-cyan-100 rounded-xl flex items-center justify-center text-cyan-600 mb-6">
+                                    <i data-lucide="route" class="w-7 h-7"></i>
+                                </div>
+                                <h3 class="text-xl font-bold text-slate-800 mb-3">Discover Routes</h3>
+                                <p class="text-slate-600 leading-relaxed">Browse available routes, compare fares, and find the best travel options for your destination.</p>
+                                <button onclick="router.navigate('routes')" class="mt-6 text-cyan-600 font-semibold flex items-center gap-2 hover:gap-3 transition-all">
+                                    View Routes <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="bg-white rounded-2xl p-8 shadow-lg card-hover border border-slate-100">
+                                <div class="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 mb-6">
+                                    <i data-lucide="shield-check" class="w-7 h-7"></i>
+                                </div>
+                                <h3 class="text-xl font-bold text-slate-800 mb-3">Verified Information</h3>
+                                <p class="text-slate-600 leading-relaxed">Access up-to-date fare estimates and official union contact details for safe travel.</p>
+                                <button onclick="router.navigate('parks')" class="mt-6 text-blue-600 font-semibold flex items-center gap-2 hover:gap-3 transition-all">
+                                    Learn More <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Featured Parks -->
+                    <div class="bg-white py-16">
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div class="flex justify-between items-end mb-10">
+                                <div>
+                                    <h2 class="text-3xl font-bold text-slate-800 mb-2">Featured Bus Parks</h2>
+                                    <p class="text-slate-600">Popular terminals across major cities</p>
+                                </div>
+                                <button onclick="router.navigate('parks')" class="hidden md:flex items-center gap-2 text-emerald-600 font-semibold hover:text-emerald-700">
+                                    View All <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6" id="featured-parks">
+                                ${data.parks.slice(0, 4).map(park => `
+                                    <div class="group cursor-pointer" onclick="router.navigate('details', {type: 'park', id: ${park.id}})">
+                                        <div class="relative overflow-hidden rounded-2xl mb-4">
+                                            <img src="${park.image}" alt="${park.name}" class="w-full h-48 object-cover transform group-hover:scale-110 transition-transform duration-500">
+                                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                            <div class="absolute bottom-4 left-4 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                                <span class="text-sm font-medium">View Details</span>
+                                            </div>
+                                        </div>
+                                        <h3 class="font-bold text-lg text-slate-800 mb-1">${park.name}</h3>
+                                        <p class="text-slate-500 text-sm flex items-center gap-1">
+                                            <i data-lucide="map-pin" class="w-4 h-4"></i>
+                                            ${park.city}, ${park.state}
+                                        </p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            
+                            <button onclick="router.navigate('parks')" class="md:hidden w-full mt-8 bg-slate-100 text-slate-700 py-3 rounded-xl font-semibold">
+                                View All Parks
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Popular Routes Preview -->
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+                        <h2 class="text-3xl font-bold text-slate-800 mb-8">Popular Routes</h2>
+                        <div class="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+                            <div class="divide-y divide-slate-100">
+                                ${data.routes.slice(0, 5).map((route, index) => `
+                                    <div class="p-6 hover:bg-slate-50 transition-colors flex items-center justify-between group cursor-pointer"
+                                         onclick="router.navigate('details', {type: 'route', id: ${route.id}})">
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
+                                                ${index + 1}
+                                            </div>
+                                            <div>
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <span class="font-semibold text-slate-800">${route.from}</span>
+                                                    <i data-lucide="arrow-right" class="w-4 h-4 text-slate-400"></i>
+                                                    <span class="font-semibold text-slate-800">${route.to}</span>
+                                                </div>
+                                                <div class="flex items-center gap-4 text-sm text-slate-500">
+                                                    <span class="flex items-center gap-1"><i data-lucide="clock" class="w-4 h-4"></i> ${route.duration}</span>
+                                                    <span class="px-2 py-1 bg-slate-100 rounded-full text-xs">${route.type}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-lg font-bold text-emerald-600">${route.fare}</div>
+                                            <div class="text-xs text-slate-400">per person</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="p-4 bg-slate-50 text-center">
+                                <button onclick="router.navigate('routes')" class="text-emerald-600 font-semibold hover:text-emerald-700">
+                                    View All Routes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats Section -->
+                    <div class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-16">
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+                                <div>
+                                    <div class="text-4xl font-bold mb-2">${data.parks.length}+</div>
+                                    <div class="text-emerald-100">Bus Parks</div>
+                                </div>
+                                <div>
+                                    <div class="text-4xl font-bold mb-2">${data.routes.length}+</div>
+                                    <div class="text-emerald-100">Active Routes</div>
+                                </div>
+                                <div>
+                                    <div class="text-4xl font-bold mb-2">36</div>
+                                    <div class="text-emerald-100">States Covered</div>
+                                </div>
+                                <div>
+                                    <div class="text-4xl font-bold mb-2">24/7</div>
+                                    <div class="text-emerald-100">Support</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderParks() {
+                const cities = [...new Set(data.parks.map(p => p.city))];
+                const states = [...new Set(data.parks.map(p => p.state))];
+                
+                return `
+                    <div class="bg-slate-100 min-h-screen pb-20">
+                        <!-- Header -->
+                        <div class="bg-white border-b border-slate-200 sticky top-16 z-40">
+                            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div>
+                                        <h1 class="text-3xl font-bold text-slate-800">Bus Parks</h1>
+                                        <p class="text-slate-600 mt-1">Find terminals across Nigeria</p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <div class="relative">
+                                            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+                                            <input type="text" id="park-search" placeholder="Search parks..." 
+                                                class="pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full md:w-64"
+                                                onkeyup="filterParks()">
+                                        </div>
+                                        <select id="city-filter" onchange="filterParks()" class="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                                            <option value="">All Cities</option>
+                                            ${cities.map(c => `<option value="${c}">${c}</option>`).join('')}
+                                        </select>
+                                        <select id="state-filter" onchange="filterParks()" class="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white hidden md:block">
+                                            <option value="">All States</option>
+                                            ${states.map(s => `<option value="${s}">${s}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Parks Grid -->
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                            <div id="parks-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                ${data.parks.map(park => `
+                                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden card-hover cursor-pointer" 
+                                         onclick="router.navigate('details', {type: 'park', id: ${park.id}})"
+                                         data-name="${park.name.toLowerCase()}" data-city="${park.city}" data-state="${park.state}">
+                                        <div class="relative h-48 overflow-hidden">
+                                            <img src="${park.image}" alt="${park.name}" class="w-full h-full object-cover">
+                                            <div class="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-xs font-semibold text-slate-700">
+                                                ${park.city}
+                                            </div>
+                                        </div>
+                                        <div class="p-6">
+                                            <h3 class="text-xl font-bold text-slate-800 mb-2">${park.name}</h3>
+                                            <p class="text-slate-500 text-sm mb-4 flex items-center gap-2">
+                                                <i data-lucide="map-pin" class="w-4 h-4"></i>
+                                                ${park.address}
+                                            </p>
+                                            <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+                                                <div class="flex items-center gap-2 text-sm text-slate-600">
+                                                    <i data-lucide="phone" class="w-4 h-4 text-emerald-500"></i>
+                                                    ${park.phone}
+                                                </div>
+                                                <span class="text-emerald-600 font-semibold text-sm">View Details →</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div id="no-parks" class="hidden text-center py-20">
+                                <div class="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i data-lucide="search-x" class="w-8 h-8 text-slate-400"></i>
+                                </div>
+                                <p class="text-slate-500">No bus parks found matching your criteria.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderRoutes() {
+                const destinations = [...new Set(data.routes.map(r => r.to))];
+                
+                return `
+                    <div class="bg-slate-100 min-h-screen pb-20">
+                        <!-- Header -->
+                        <div class="bg-white border-b border-slate-200 sticky top-16 z-40">
+                            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div>
+                                        <h1 class="text-3xl font-bold text-slate-800">Bus Routes</h1>
+                                        <p class="text-slate-600 mt-1">Explore available routes and fares</p>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <div class="relative">
+                                            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+                                            <input type="text" id="route-search" placeholder="Search routes or destinations..." 
+                                                class="pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full md:w-64"
+                                                onkeyup="filterRoutes()">
+                                        </div>
+                                        <select id="destination-filter" onchange="filterRoutes()" class="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                                            <option value="">All Destinations</option>
+                                            ${destinations.map(d => `<option value="${d}">${d}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Routes List -->
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div class="divide-y divide-slate-100" id="routes-list">
+                                    ${data.routes.map(route => {
+                                        const fromPark = data.parks.find(p => p.name === route.from);
+                                        return `
+                                        <div class="p-6 hover:bg-slate-50 transition-all cursor-pointer group" 
+                                             onclick="router.navigate('details', {type: 'route', id: ${route.id}})"
+                                             data-from="${route.from.toLowerCase()}" data-to="${route.to.toLowerCase()}" data-destination="${route.to}">
+                                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                <div class="flex-1">
+                                                    <div class="flex items-center gap-3 mb-3">
+                                                        <div class="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-lg">
+                                                            <span class="font-semibold text-slate-700">${route.from}</span>
+                                                            <i data-lucide="arrow-right" class="w-4 h-4 text-emerald-500"></i>
+                                                            <span class="font-semibold text-slate-700">${route.to}</span>
+                                                        </div>
+                                                        <span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">${route.type}</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-4 text-sm text-slate-500">
+                                                        <span class="flex items-center gap-1"><i data-lucide="clock" class="w-4 h-4"></i> ${route.duration}</span>
+                                                        <span class="flex items-center gap-1"><i data-lucide="bus" class="w-4 h-4"></i> ${fromPark ? fromPark.union : 'Transport Union'}</span>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center gap-6">
+                                                    <div class="text-right">
+                                                        <div class="text-2xl font-bold text-emerald-600">${route.fare}</div>
+                                                        <div class="text-xs text-slate-400">estimated fare</div>
+                                                    </div>
+                                                    <button class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                                                        <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                                <div id="no-routes" class="hidden p-12 text-center">
+                                    <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <i data-lucide="route-off" class="w-8 h-8 text-slate-400"></i>
+                                    </div>
+                                    <p class="text-slate-500">No routes found matching your search.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderDetails() {
+                const { type, id } = this.params;
+                
+                if (type === 'park') {
+                    const park = data.parks.find(p => p.id === id);
+                    if (!park) return '<div class="pt-32 text-center">Park not found</div>';
+                    
+                    const parkRoutes = data.routes.filter(r => r.from === park.name || r.to === park.name);
+                    
+                    return `
+                        <div class="min-h-screen bg-slate-50 pb-20">
+                            <!-- Hero Image -->
+                            <div class="relative h-64 md:h-96">
+                                <img src="${park.image}" alt="${park.name}" class="w-full h-full object-cover">
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
+                                <div class="absolute bottom-0 left-0 right-0 p-6 md:p-12">
+                                    <div class="max-w-7xl mx-auto">
+                                        <button onclick="router.navigate('parks')" class="mb-4 text-white/80 hover:text-white flex items-center gap-2 transition-colors">
+                                            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Parks
+                                        </button>
+                                        <h1 class="text-3xl md:text-5xl font-bold text-white mb-2">${park.name}</h1>
+                                        <p class="text-white/90 flex items-center gap-2 text-lg">
+                                            <i data-lucide="map-pin" class="w-5 h-5"></i>
+                                            ${park.address}, ${park.city}, ${park.state}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10">
+                                <div class="grid lg:grid-cols-3 gap-8">
+                                    <!-- Main Info -->
+                                    <div class="lg:col-span-2 space-y-6">
+                                        <!-- Quick Info Cards -->
+                                        <div class="grid md:grid-cols-3 gap-4">
+                                            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                                <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 mb-3">
+                                                    <i data-lucide="phone" class="w-5 h-5"></i>
+                                                </div>
+                                                <div class="text-sm text-slate-500 mb-1">Contact</div>
+                                                <div class="font-semibold text-slate-800">${park.phone}</div>
+                                            </div>
+                                            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mb-3">
+                                                    <i data-lucide="shield" class="w-5 h-5"></i>
+                                                </div>
+                                                <div class="text-sm text-slate-500 mb-1">Union</div>
+                                                <div class="font-semibold text-slate-800 text-sm">${park.union}</div>
+                                            </div>
+                                            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 mb-3">
+                                                    <i data-lucide="navigation" class="w-5 h-5"></i>
+                                                </div>
+                                                <div class="text-sm text-slate-500 mb-1">Routes</div>
+                                                <div class="font-semibold text-slate-800">${parkRoutes.length} Available</div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Map -->
+                                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                            <div class="p-6 border-b border-slate-100">
+                                                <h2 class="text-xl font-bold text-slate-800">Location Map</h2>
+                                            </div>
+                                            <div id="map" class="w-full h-96"></div>
+                                        </div>
+
+                                        <!-- Description -->
+                                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                                            <h2 class="text-xl font-bold text-slate-800 mb-4">About this Terminal</h2>
+                                            <p class="text-slate-600 leading-relaxed">${park.description}</p>
+                                            <div class="mt-6 flex flex-wrap gap-2">
+                                                <span class="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-sm font-medium">Secure Parking</span>
+                                                <span class="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">Waiting Area</span>
+                                                <span class="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm font-medium">Food Vendors</span>
+                                                <span class="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-sm font-medium">Restrooms</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Available Routes -->
+                                        ${parkRoutes.length > 0 ? `
+                                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                                            <h2 class="text-xl font-bold text-slate-800 mb-6">Routes from this Park</h2>
+                                            <div class="space-y-4">
+                                                ${parkRoutes.map(route => `
+                                                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                                                         onclick="router.navigate('details', {type: 'route', id: ${route.id}})">
+                                                        <div class="flex items-center gap-3">
+                                                            <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+                                                                <i data-lucide="arrow-right" class="w-5 h-5 text-emerald-600"></i>
+                                                            </div>
+                                                            <div>
+                                                                <div class="font-semibold text-slate-800">To ${route.to}</div>
+                                                                <div class="text-sm text-slate-500">${route.duration} • ${route.type}</div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="font-bold text-emerald-600">${route.fare}</div>
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                        ` : ''}
+                                    </div>
+
+                                    <!-- Sidebar -->
+                                    <div class="space-y-6">
+                                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sticky top-24">
+                                            <h3 class="font-bold text-slate-800 mb-4">Transport Union</h3>
+                                            <div class="p-4 bg-slate-50 rounded-xl mb-4">
+                                                <div class="font-semibold text-slate-800 mb-1">${park.union}</div>
+                                                <div class="text-sm text-slate-500">Official Union</div>
+                                            </div>
+                                            <button onclick="window.open('tel:${park.phone}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors mb-3">
+                                                <i data-lucide="phone" class="w-5 h-5"></i>
+                                                Call Park
+                                            </button>
+                                            <button onclick="window.open('https://wa.me/${park.phone.replace(/[^0-9]/g, '')}')" class="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors">
+                                                <i data-lucide="message-circle" class="w-5 h-5"></i>
+                                                WhatsApp
+                                            </button>
+                                            
+                                            <div class="mt-6 pt-6 border-t border-slate-100">
+                                                <h4 class="font-semibold text-slate-800 mb-3">Safety Tips</h4>
+                                                <ul class="space-y-2 text-sm text-slate-600">
+                                                    <li class="flex items-start gap-2">
+                                                        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 mt-0.5"></i>
+                                                        Arrive 30 minutes early
+                                                    </li>
+                                                    <li class="flex items-start gap-2">
+                                                        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 mt-0.5"></i>
+                                                        Verify vehicle plate number
+                                                    </li>
+                                                    <li class="flex items-start gap-2">
+                                                        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 mt-0.5"></i>
+                                                        Keep valuables secure
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (type === 'route') {
+                    const route = data.routes.find(r => r.id === id);
+                    if (!route) return '<div class="pt-32 text-center">Route not found</div>';
+                    
+                    const fromPark = data.parks.find(p => p.name === route.from);
+                    const toPark = data.parks.find(p => p.name === route.to);
+                    
+                    return `
+                        <div class="min-h-screen bg-slate-50 pb-20">
+                            <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+                                <button onclick="router.navigate('routes')" class="mb-6 text-slate-600 hover:text-emerald-600 flex items-center gap-2 transition-colors">
+                                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Routes
+                                </button>
+
+                                <div class="bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden">
+                                    <!-- Route Header -->
+                                    <div class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-8 md:p-12">
+                                        <div class="flex items-center gap-2 mb-4">
+                                            <span class="px-3 py-1 bg-white/20 rounded-full text-sm font-medium">${route.type} Service</span>
+                                        </div>
+                                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                            <div>
+                                                <div class="flex items-center gap-4 mb-2">
+                                                    <h1 class="text-3xl font-bold">${route.from}</h1>
+                                                    <i data-lucide="arrow-right" class="w-8 h-8 opacity-60"></i>
+                                                    <h1 class="text-3xl font-bold">${route.to}</h1>
+                                                </div>
+                                                <p class="text-emerald-100 flex items-center gap-2">
+                                                    <i data-lucide="clock" class="w-5 h-5"></i>
+                                                    Estimated travel time: ${route.duration}
+                                                </p>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-4xl font-bold">${route.fare}</div>
+                                                <div class="text-emerald-100">per person</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-8 md:p-12">
+                                        <div class="grid md:grid-cols-2 gap-12">
+                                            <!-- Departure -->
+                                            <div class="space-y-4">
+                                                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                                    <i data-lucide="map-pin" class="w-5 h-5 text-emerald-600"></i>
+                                                    Departure Terminal
+                                                </h3>
+                                                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-200 cursor-pointer hover:border-emerald-300 transition-colors"
+                                                     onclick="${fromPark ? `router.navigate('details', {type: 'park', id: ${fromPark.id}})` : ''}">
+                                                    <div class="font-bold text-xl text-slate-800 mb-2">${route.from}</div>
+                                                    ${fromPark ? `
+                                                        <p class="text-slate-600 mb-4">${fromPark.address}</p>
+                                                        <div class="flex items-center gap-2 text-emerald-600 font-medium">
+                                                            <i data-lucide="phone" class="w-4 h-4"></i>
+                                                            ${fromPark.phone}
+                                                        </div>
+                                                    ` : '<p class="text-slate-500">Contact transport union for details</p>'}
+                                                </div>
+                                            </div>
+
+                                            <!-- Destination -->
+                                            <div class="space-y-4">
+                                                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                                    <i data-lucide="flag" class="w-5 h-5 text-emerald-600"></i>
+                                                    Destination Terminal
+                                                </h3>
+                                                <div class="p-6 bg-slate-50 rounded-2xl border border-slate-200 cursor-pointer hover:border-emerald-300 transition-colors"
+                                                     onclick="${toPark ? `router.navigate('details', {type: 'park', id: ${toPark.id}})` : ''}">
+                                                    <div class="font-bold text-xl text-slate-800 mb-2">${route.to}</div>
+                                                    ${toPark ? `
+                                                        <p class="text-slate-600 mb-4">${toPark.address}</p>
+                                                        <div class="flex items-center gap-2 text-emerald-600 font-medium">
+                                                            <i data-lucide="phone" class="w-4 h-4"></i>
+                                                            ${toPark.phone}
+                                                        </div>
+                                                    ` : '<p class="text-slate-500">Contact transport union for details</p>'}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Additional Info -->
+                                        <div class="mt-12 pt-8 border-t border-slate-200">
+                                            <h3 class="text-lg font-bold text-slate-800 mb-6">Journey Information</h3>
+                                            <div class="grid md:grid-cols-3 gap-6">
+                                                <div class="flex items-start gap-4">
+                                                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 flex-shrink-0">
+                                                        <i data-lucide="shield-check" class="w-6 h-6"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div class="font-semibold text-slate-800">Safety First</div>
+                                                        <p class="text-sm text-slate-600 mt-1">All vehicles are registered with transport unions and insured.</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-start gap-4">
+                                                    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 flex-shrink-0">
+                                                        <i data-lucide="luggage" class="w-6 h-6"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div class="font-semibold text-slate-800">Baggage Allowance</div>
+                                                        <p class="text-sm text-slate-600 mt-1">Standard luggage included. Extra bags may incur charges.</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-start gap-4">
+                                                    <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 flex-shrink-0">
+                                                        <i data-lucide="refresh-ccw" class="w-6 h-6"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div class="font-semibold text-slate-800">Cancellation</div>
+                                                        <p class="text-sm text-slate-600 mt-1">Contact terminal 24 hours before departure for refunds.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Action Buttons -->
+                                        <div class="mt-12 flex flex-col sm:flex-row gap-4">
+                                            ${fromPark ? `
+                                            <button onclick="window.open('tel:${fromPark.phone}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-colors">
+                                                <i data-lucide="phone" class="w-5 h-5"></i>
+                                                Book Ticket
+                                            </button>
+                                            ` : ''}
+                                            <button onclick="shareRoute(${route.id})" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-colors">
+                                                <i data-lucide="share-2" class="w-5 h-5"></i>
+                                                Share Route
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+
+            initHome() {
+                // Any home-specific initialization
+            },
+
+            initParks() {
+                // Initialize parks view
+            },
+
+            initRoutes() {
+                // Initialize routes view
+            },
+
+            initDetails() {
+                const { type, id } = this.params;
+                if (type === 'park') {
+                    const park = data.parks.find(p => p.id === id);
+                    if (park && park.coordinates) {
+                        setTimeout(() => {
+                            const map = L.map('map').setView(park.coordinates, 15);
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                attribution: '© OpenStreetMap contributors'
+                            }).addTo(map);
+                            L.marker(park.coordinates).addTo(map)
+                                .bindPopup(`<b>${park.name}</b><br>${park.address}`)
+                                .openPopup();
+                        }, 100);
+                    }
+                }
+            }
+        };
+
+        // Filter Functions
+        function filterParks() {
+            const search = document.getElementById('park-search').value.toLowerCase();
+            const city = document.getElementById('city-filter').value;
+            const state = document.getElementById('state-filter').value;
+            
+            const cards = document.querySelectorAll('#parks-grid > div');
+            let visible = 0;
+            
+            cards.forEach(card => {
+                const name = card.getAttribute('data-name');
+                const cardCity = card.getAttribute('data-city');
+                const cardState = card.getAttribute('data-state');
+                
+                const matchesSearch = name.includes(search);
+                const matchesCity = !city || cardCity === city;
+                const matchesState = !state || cardState === state;
+                
+                if (matchesSearch && matchesCity && matchesState) {
+                    card.style.display = 'block';
+                    visible++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            
+            document.getElementById('no-parks').style.display = visible === 0 ? 'block' : 'none';
+        }
+
+        function filterRoutes() {
+            const search = document.getElementById('route-search').value.toLowerCase();
+            const destination = document.getElementById('destination-filter').value;
+            
+            const items = document.querySelectorAll('#routes-list > div');
+            let visible = 0;
+            
+            items.forEach(item => {
+                const from = item.getAttribute('data-from');
+                const to = item.getAttribute('data-to');
+                const itemDest = item.getAttribute('data-destination');
+                
+                const matchesSearch = from.includes(search) || to.includes(search);
+                const matchesDest = !destination || itemDest === destination;
+                
+                if (matchesSearch && matchesDest) {
+                    item.style.display = 'block';
+                    visible++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            document.getElementById('no-routes').style.display = visible === 0 ? 'block' : 'none';
+        }
+
+        function handleHeroSearch(e) {
+            if (e.key === 'Enter') {
+                performHeroSearch();
+            }
+        }
+
+        function performHeroSearch() {
+            const query = document.getElementById('hero-search').value.toLowerCase();
+            if (!query) return;
+            
+            // Check if query matches a park
+            const park = data.parks.find(p => 
+                p.name.toLowerCase().includes(query) || 
+                p.city.toLowerCase().includes(query) ||
+                p.state.toLowerCase().includes(query)
+            );
+            
+            if (park) {
+                router.navigate('details', { type: 'park', id: park.id });
+                return;
+            }
+            
+            // Check if query matches a route
+            const route = data.routes.find(r => 
+                r.from.toLowerCase().includes(query) || 
+                r.to.toLowerCase().includes(query)
+            );
+            
+            if (route) {
+                router.navigate('details', { type: 'route', id: route.id });
+                return;
+            }
+            
+            // Default to parks page with search
+            router.navigate('parks');
+            setTimeout(() => {
+                document.getElementById('park-search').value = query;
+                filterParks();
+            }, 100);
+        }
+
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        function shareRoute(id) {
+            const route = data.routes.find(r => r.id === id);
+            if (navigator.share) {
+                navigator.share({
+                    title: `Bus Route: ${route.from} to ${route.to}`,
+                    text: `Check out this bus route from ${route.from} to ${route.to}. Fare: ${route.fare}`,
+                    url: window.location.href
+                });
+            } else {
+                alert('Route link copied to clipboard!');
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            router.navigate('home');
+        });
+
+        // Handle browser back/forward
+        window.addEventListener('popstate', () => {
+            // In a real app, handle URL routing here
+        });
+    </script>
+</body>
+</html>
