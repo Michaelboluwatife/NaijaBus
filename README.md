@@ -1,7 +1,7 @@
 # NaijaBus
 # 🚌 NaijaBus - Bus Park & Route Information System
 
-[![GitHub Pages](https://img.shields.io/badge/Hosted%20on-GitHub%20Pages-blue)](https://yourusername.github.io/naijabus)
+[![GitHub Pages](https://img.shields.io/badge/Hosted%20on-GitHub%20Pages-blue)](https://Michaelboluwatife.github.io/NaijaBus)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![Responsive](https://img.shields.io/badge/Responsive-Yes-success)](https://yourusername.github.io/naijabus)
 
