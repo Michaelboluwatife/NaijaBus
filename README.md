@@ -18,7 +18,7 @@ A responsive web application providing comprehensive information about bus parks
 
 ## 🚀 Live Demo
 
-**URL**: [https://yourusername.github.io/naijabus](https://yourusername.github.io/naijabus)
+**URL**: [https://yourusername.github.io/naijabus](https://Michaelboluwatife.github.io/NaijaBus)
 
 ## 📋 Pages
 
